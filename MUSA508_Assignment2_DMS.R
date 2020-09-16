@@ -152,14 +152,9 @@ LightRailPGH <- read.csv('./data/LightRailPGH.csv')%>%
          Lon=Longitude.N.19.11) 
 
 #Convert lat and longitude to point geometry
-#Stuck on this
-#latlong_sf <- st_as_sf(LightRailPGH, coords = ___, crs = ___)
+LightRailPGH_sf <- st_as_sf(LightRailPGH, coords = c("Lat", "Lon"), crs = 'ESRI:102728')
+#A number of these stations have both inbound and outbound stations for the same stop with slightly different coordinates.  
+# Do we wnt to remove "duplicates"?
 
-
-xy <- as.data.frame(cbind(X = LightRailPGH$Lat, Y = LightRailPGH$Lon))
-coordinates(xy) <- c("X", "Y")
-proj4string(xy) <- CRS("+proj=longlat +datum=WGS84") 
-res <- spTransform(xy, CRS("+proj=utm +zone=51 ellps=WGS84"))
-head(res)
 
 
