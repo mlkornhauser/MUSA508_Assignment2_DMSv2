@@ -157,4 +157,17 @@ LightRailPGH_sf <- st_as_sf(LightRailPGH, coords = c("Lat", "Lon"), crs = 'ESRI:
 # Do we wnt to remove "duplicates"?
 
 
+# Let's visualize it
+
+ggplot() + 
+  geom_sf(data=tracts17) +
+  geom_sf(data=LightRailPGH_sf, 
+          aes(colour = Direction), 
+          show.legend = "point", size= 2) +
+  scale_colour_manual(values = c("red","blue", "green")) +
+  labs(title="Light Rail Stops", 
+       subtitle="Pittsburgh, PA", 
+       caption="Figure 1") +
+  mapTheme()
+
 
