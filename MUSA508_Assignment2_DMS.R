@@ -152,7 +152,16 @@ LightRailPGH <- read.csv('./data/LightRailPGH.csv')%>%
          Lon=Longitude.N.19.11) 
 
 #Convert lat and longitude to point geometry
-LightRailPGH_sf <- st_as_sf(LightRailPGH, coords = c("Lat", "Lon"), crs = 'ESRI:102728')
+xy <- c(X="Lon", Y="Lat", data = LightRailPGH)
+coordinates(xy) <- c("X", "Y")
+proj4string(xy) <- CRS("+proj=longlat +datum=WGS84")  ## for example
+
+res <- spTransform(xy, CRS("+proj=utm +zone=51 ellps=WGS84"))
+res
+
+
+LightRailPGH_sf <- st_as_sf(LightRailPGH, coords = c("Lon", "Lat"), crs = 'ESRI:102728')
+LightRailPGH_sf
 #A number of these stations have both inbound and outbound stations for the same stop with slightly different coordinates.  
 # Do we wnt to remove "duplicates"?
 
@@ -164,7 +173,7 @@ ggplot() +
   geom_sf(data=LightRailPGH_sf, 
           aes(colour = Direction), 
           show.legend = "point", size= 2) +
-  scale_colour_manual(values = c("red","blue", "green")) +
+  scale_colour_manual(values = c("red", "blue", "green")) +
   labs(title="Light Rail Stops", 
        subtitle="Pittsburgh, PA", 
        caption="Figure 1") +
