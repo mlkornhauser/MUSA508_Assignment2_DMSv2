@@ -105,7 +105,7 @@ tracts09 <-
          year = "2017") %>%
   dplyr::select(-Whites, -FemaleBachelors, -MaleBachelors, -TotalPoverty)  
 
-#MK Note:  Need to select just the tracts within Pittsburgh City limits
+###MK NOTE:  Need to select just the tracts within Pittsburgh City limits
 
 summary(tracts09)
 
@@ -127,15 +127,18 @@ tracts17 <-
          pctBachelors = ifelse(TotalPop > 0, ((FemaleBachelors + MaleBachelors) / TotalPop),0),
          pctPoverty = ifelse(TotalPop > 0, TotalPoverty / TotalPop, 0),
          year = "2017") %>%
-  dplyr::select(-Whites, -FemaleBachelors, -MaleBachelors, -TotalPoverty)
+  dplyr::select(-Whites, -FemaleBachelors, -MaleBachelors, -TotalPoverty)%>%
+  dplyr::mutate(GEOID = as.numeric(GEOID))
 
-#MK Note:  Need to select just the tracts within Pittsburgh City limits
+#Generate list of Pittsburgh census tracts
+pitt_tracts10 <- read.csv('./data/Pitt_2010_Census_Tractsv2.csv')
+names(pitt_tracts10)[names(pitt_tracts10) == "geoid10v2"] <- "GEOID"
 
-head(tracts17)
-summary(tracts17)
+#Filter Allegheny County census trcts dataframe to only include Pittsburgh tracts
+tracts17 <- tracts17[tracts17$GEOID %in% pitt_tracts10$GEOID,]
+plot(tracts17)
 
 # Combine 2009 and 2017 census data into single dataframe
-
 allTracts <- rbind(tracts09,tracts17)
 summary(allTracts)
 
@@ -150,33 +153,40 @@ LightRailPGH <- read.csv('./data/LightRailPGH.csv')%>%
          Routes=Routes_ser.C.254, 
          Lat=Latitude.N.19.11, 
          Lon=Longitude.N.19.11) 
+head(LightRailPGH)
 
-#Convert lat and longitude to point geometry
-xy <- c(X="Lon", Y="Lat", data = LightRailPGH)
-coordinates(xy) <- c("X", "Y")
-proj4string(xy) <- CRS("+proj=longlat +datum=WGS84")  ## for example
+#project Pittsburgh coordinates
+LightRailPGH_sf <- st_as_sf(LightRailPGH, coords = c("Lon", "Lat"), crs = 4326) %>%
+  st_transform('ESRI:102728')
+head(LightRailPGH_sf)
 
-res <- spTransform(xy, CRS("+proj=utm +zone=51 ellps=WGS84"))
-res
+####################
+# VISUALIZAING DATA
+####################
+
+#2017
+ggplot() + 
+  geom_sf(data=tracts09) +
+  geom_sf(data=LightRailPGH_sf, 
+          aes(colour = Direction), 
+          show.legend = "point", size= 2) +
+  labs(title="Light Rail Stops", 
+       subtitle="Pittsburgh, PA", 
+       caption="Figure 1") +
+  mapTheme()
 
 
-LightRailPGH_sf <- st_as_sf(LightRailPGH, coords = c("Lon", "Lat"), crs = 'ESRI:102728')
-LightRailPGH_sf
-#A number of these stations have both inbound and outbound stations for the same stop with slightly different coordinates.  
-# Do we wnt to remove "duplicates"?
-
-
-# Let's visualize it
-
+#2017
 ggplot() + 
   geom_sf(data=tracts17) +
   geom_sf(data=LightRailPGH_sf, 
           aes(colour = Direction), 
           show.legend = "point", size= 2) +
-  scale_colour_manual(values = c("red", "blue", "green")) +
   labs(title="Light Rail Stops", 
        subtitle="Pittsburgh, PA", 
        caption="Figure 1") +
   mapTheme()
+
+
 
 
