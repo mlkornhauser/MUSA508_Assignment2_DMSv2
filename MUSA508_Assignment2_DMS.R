@@ -187,6 +187,86 @@ ggplot() +
        caption="Figure 1") +
   mapTheme()
 
+#Relatingg tracts and subway stops using buffers to understand relationship
+Railbuffers <- 
+  st_buffer(LightRailPGH_sf, 2640) %>%
+  mutate(Legend = "Buffer") %>%
+  dplyr::select(Legend)
+st_union(st_buffer(LightRailPGH_sf, 2640)) %>%
+  st_sf() %>%
+  mutate(Legend = "Unioned Buffer")
 
+ggplot() +
+  geom_sf(data=Railbuffers) +
+  geom_sf(data=LightRailPGH_sf, show.legend = "point") +
+  facet_wrap(~Legend) + 
+  labs(caption = "Figure 2.6") +
+  mapTheme()
+
+#Selecting census tracts within the lighrail station buffers
+# 3 methods to select census tracts and their corresponding stops;clip, selection, selection of centroids
+buffer <- filter(Railbuffers, Legend=="Unioned Buffer")
+#Clip slections
+clip <- 
+  st_intersection(buffer, tracts09) %>%
+  dplyr::select(TotalPop) %>%
+  mutate(Selection_Type = "Clip")
+#Spatial Selection
+selection <- 
+  tracts09[buffer,] %>%
+  dplyr::select(TotalPop) %>%
+  mutate(Selection_Type = "Spatial Selection")
+#Select Centroids
+selectCentroids <-
+  st_centroid(tracts09)[buffer,] %>%
+  st_drop_geometry() %>%
+  left_join(dplyr::select(tracts09, GEOID)) %>%
+  st_sf() %>%
+  dplyr::select(TotalPop) %>%
+  mutate(Selection_Type = "Select by Centroids")
+
+#Putting the buffer selections and tract data together
+allTracts.group <- 
+  rbind(
+    st_centroid(allTracts)[buffer,] %>%
+      st_drop_geometry() %>%
+      left_join(allTracts) %>%
+      st_sf() %>%
+      mutate(TOD = "TOD"),
+    st_centroid(allTracts)[buffer, op = st_disjoint] %>%
+      st_drop_geometry() %>%
+      left_join(allTracts) %>%
+      st_sf() %>%
+      mutate(TOD = "Non-TOD")) %>%
+  mutate(MedRent.inf = ifelse(year == "2009", MedRent * 1.42, MedRent))
+
+ggplot(allTracts.group)+
+  geom_sf(data = st_union(tracts09))+
+  geom_sf(aes(fill = q5(TotalPop))) +
+  scale_fill_manual(values = palette5,
+                    labels = qBr(myData, "TotalPop"),
+                    name = "Popluation\n(Quintile Breaks)") +
+  labs(title = "Total Population", subtitle = "Pittsburgh; 2009") +
+  facet_wrap(~Selection_Type)+
+  mapTheme() + 
+  theme(plot.title = element_text(size=22))
+
+TODMap <- ggplot(allTracts.group, show.legend =FALSE) +
+  geom_sf(data=pitt_tracts10, show.legend = FALSE) +
+  geom_sf(data=LightRailPGH_sf, show.legend = "Stops") +
+  facet_wrap(~Legend) + 
+  labs(caption = "Figure 2.7") +
+  mapTheme()
+
+ggplot() + 
+  geom_sf(data=allTracts.group)
+  geom_sf(data=tracts09) +
+  geom_sf(data=LightRailPGH_sf, 
+          aes(colour = Direction), +
+          show.legend = "point", size= 2) +
+  labs(title="Light Rail Stops", 
+       subtitle="Pittsburgh, PA", 
+       caption="Figure 1") +
+  mapTheme()
 
 
