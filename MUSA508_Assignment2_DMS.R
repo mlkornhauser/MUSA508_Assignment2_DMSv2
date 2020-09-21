@@ -205,7 +205,7 @@ buffer <- st_union(st_buffer(LightRailPGH_sf, 2640)) %>%
   mutate(Legend = "Unioned Buffer")
 
 ggplot() +
-  geom_sf(data = buffers)
+  geom_sf(data = buffer)
 
 ggplot() +
   geom_sf(data=Railbuffers) +
@@ -214,7 +214,7 @@ ggplot() +
   labs(caption = "Figure 2.6") +
   mapTheme()
 
-#Selecting census tracts within the lighrail station buffers
+#Selecting census tracts within the lightrail station buffers
 # 3 methods to select census tracts and their corresponding stops;clip, selection, selection of centroids
 
 #Select Centroids
@@ -254,18 +254,65 @@ allTracts.group <-
   mutate(MedRent.inf = ifelse(year == "2009", MedRent * 1.42, MedRent))
 
 #Median rent maps: 2009 to 2017
-ggplot(allTracts.group) +
+
+ggplot(allTracts.group)+
+  geom_sf(data = st_union(tracts09))+
   geom_sf(aes(fill = q5(MedRent))) +
-  geom_sf(data = buffer, color = "dark red", fill = NA, lwd=1.5) 
+  geom_sf(data = buffer, fill = "transparent", color = "red")+
   scale_fill_manual(values = palette5,
                     labels = qBr(allTracts.group, "MedRent"),
                     name = "Median Rent\n(Quintile Breaks)") +
-  labs(title = "Median Rent", subtitle = "Pittsburgh: 2009-2017") +
+  labs(title = "Median Rent 2009-2017", subtitle = "Real Dollars") +
   facet_wrap(~year)+
   mapTheme() + 
   theme(plot.title = element_text(size=22))
 
-#MK NOTE:  Action Item! Need to complete for other 4 census variables.
+  
+  #Percent White population map 2009 to 2017
+  
+  ggplot(allTracts.group)+
+    geom_sf(data = st_union(tracts09))+
+    geom_sf(aes(fill = q5(pctWhite))) +
+    geom_sf(data = buffer, fill = "transparent", color = "red")+
+    scale_fill_manual(values = palette5,
+                      labels = qBr(allTracts.group, "pctWhite"),
+                      name = "Population Percent White\n(Quintile Breaks)") +
+    labs(title = "Population Percent White 2009-2017", subtitle = "Real Dollars") +
+    facet_wrap(~year)+
+    mapTheme() + 
+    theme(plot.title = element_text(size=22))
+  
+  
+  #Median Household Income maps 2009-2017
+  
+  ggplot(allTracts.group)+
+    geom_sf(data = st_union(tracts09))+
+    geom_sf(aes(fill = q5(MedHHInc))) +
+    geom_sf(data = buffer, fill = "transparent", color = "red")+
+    scale_fill_manual(values = palette5,
+                      labels = qBr(allTracts.group, "MedHHInc"),
+                      name = "Median Household Income\n(Quintile Breaks)") +
+    labs(title = "Median Household Income 2009-2017", subtitle = "Real Dollars") +
+    facet_wrap(~year)+
+    mapTheme() + 
+    theme(plot.title = element_text(size=22))
+  
+  
+  #Median Age Maps 2009-2017
+  
+  ggplot(allTracts.group)+
+    geom_sf(data = st_union(tracts09))+
+    geom_sf(aes(fill = q5(MedAge))) +
+    geom_sf(data = buffer, fill = "transparent", color = "red")+
+    scale_fill_manual(values = palette5,
+                      labels = qBr(allTracts.group, "MedAge"),
+                      name = "Median Rent\n(Quintile Breaks)") +
+    labs(title = "Median Rent 2009-2017", subtitle = "Real Dollars") +
+    facet_wrap(~year)+
+    mapTheme() + 
+    theme(plot.title = element_text(size=22))
+  
+
 
 #Time space TOD and non-TOD: 2009 to 2017
 ggplot(allTracts.group)+
