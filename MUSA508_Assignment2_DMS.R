@@ -260,16 +260,14 @@ ggplot(allTracts.group)+
   geom_sf(aes(fill = q5(MedRent))) +
   geom_sf(data = buffer, fill = "transparent", color = "red")+
   scale_fill_manual(values = palette5,
-                    labels = qBr(allTracts.group, "MedRent"),
+                    labels = qBr(allTracts.group, "MedRent"), #ASK TYLER ABOUT THIS LABEL ISSUE!!
                     name = "Median Rent\n(Quintile Breaks)") +
   labs(title = "Median Rent 2009-2017", subtitle = "Real Dollars") +
   facet_wrap(~year)+
   mapTheme() + 
   theme(plot.title = element_text(size=22))
+#Q For Tyler %white label issues
 
-  
-  #Percent White population map 2009 to 2017
-  
   ggplot(allTracts.group)+
     geom_sf(data = st_union(tracts09))+
     geom_sf(aes(fill = q5(pctWhite))) +
@@ -307,7 +305,7 @@ ggplot(allTracts.group)+
     scale_fill_manual(values = palette5,
                       labels = qBr(allTracts.group, "MedAge"),
                       name = "Median Rent\n(Quintile Breaks)") +
-    labs(title = "Median Rent 2009-2017", subtitle = "Real Dollars") +
+    labs(title = "Median Age 2009-2017", subtitle = "Real Dollars") +
     facet_wrap(~year)+
     mapTheme() + 
     theme(plot.title = element_text(size=22))
@@ -337,7 +335,8 @@ allTracts.Summary <-
 kable(allTracts.Summary) %>%
   kable_styling() 
 #Add title to this later
-
+#This rearranged the plot to be more readable
+#Q for Tyler: Approach with Boundary Works???
 allTracts.Summary %>%
   unite(year.TOD, year, TOD, sep = ": ", remove = T) %>%
   gather(Variable, Value, -year.TOD) %>%
@@ -359,17 +358,48 @@ allTracts.Summary %>%
   plotTheme() + theme(legend.position="bottom")
 
 #Graduate symbols map
-ggplot() +
-  geom_sf(data = tracts09, fill = "white") +
-  geom_sf(data = selectCentroids09, aes(size  = TotalPop), shape = 10, 
-          fill = "lightblue", alpha = .5, show.legend = "point") +
-  scale_size_continuous(range = c(1, 10))
+#ORIGINAL ATTEMPT
+# ggplot() +
+#   geom_sf(data = tracts09, fill = "white") +
+#   geom_sf(data = selectCentroids09, aes(size  = TotalPop), shape = 10, 
+#           fill = "lightblue", alpha = .5, show.legend = "point") +
+#   scale_size_continuous(range = c(1, 10))
   
 #MK Note:  Action item!  We need to figure out how to make this legible.
+
+#DK ATTEMPT BELOW
+
+centers17 <- st_centroid(selectCentroids17)
+View(centers17)
+
+ggplot(allTracts.group)+
+  geom_sf(data = allTracts.group, fill = "white") +   
+  geom_sf(data = centers17, aes(size = TotalPop), shape = 21,          
+  fill = "darkblue", alpha = 0.7, show.legend = "point") +   
+  scale_size_continuous(range = c(0.1, 5))
+#Q for TYLER how to zoom in to make this more readable
+
+centers17Rent <-
+  st_centroid(tracts17)[buffer,] %>%
+  st_drop_geometry() %>%
+  left_join(dplyr::select(tracts17, GEOID)) %>%
+  st_sf() %>%
+  dplyr::select(TotalPop, MedRent) %>%
+  mutate(Selection_Type = "Select by Centroids")
+centers17Rent <- na.omit(centers17Rent) 
+
+centers17Rent2 <- st_centroid(centers17Rent)
+
+ggplot(allTracts.group)+
+  geom_sf(data = allTracts.group, fill = "white") +   
+  geom_sf(data = centers17Rent2, aes(size = MedRent), shape = 21,          
+          fill = "darkgreen", alpha = 0.7, show.legend = "point") +   
+  scale_size_continuous(range = c(0.8, 4))
 
 
 #MK NOTE:  Need to figure out the map buffer.
 #Multiple ring buffers.
+#DK Attempt
 multipleRingBuffer <- function(inputPolygon, maxDistance, interval) 
 {
   #create a list of distances that we'll iterate through to create each ring
@@ -452,18 +482,33 @@ multipleRingBuffer <- function(inputPolygon, maxDistance, interval)
   allRings <- st_as_sf(allRings)
 }
 
+plot(tracts09)  
+PittBuffer4Rings <- multipleRingBuffer(buffer, 52800, 5280)
+st_read("data\\Pittsburgh_City_Boundary.geojson")
+PittBound <- st_read("data\\Pittsburgh_City_Boundary.geojson")
+  
+ggplot()+
+    geom_sf(data = PittBuffer4Rings, fill = "white") +
+    geom_sf(data = PittBound, fill = "transparent", lwd=1.5)+
+    geom_sf(data =LightRailPGH_sf, colour = "blue")
 
-allTracts.rings <-
-  st_join(st_centroid(dplyr::select(allTracts.rings, GEOID, year)), 
-          multipleRingBuffer(st_union(LightRailPGH_sf), 47520, 2640)) %>%
-  st_drop_geometry() %>%
-  left_join(dplyr::select(allTracts, GEOID, MedRent, year), 
-            by=c("GEOID"="GEOID", "year"="year")) %>%
-  st_sf() %>%
-  mutate(distance = distance / 5280) #convert to miles
+  ggplot() + geom_sf(data = buffers, aes(fill = distance))
 
+#Crime Data integration
+  
+ PittCrime <- read.csv("data\\PittsburghCrime.csv") %>%  
+  select(INCIDENTTIME, INCIDENTHIERARCHYDESC, X, Y)
+ PittCrime <- filter(PittCrime, X != 0)
+ PittCrime <- na.omit(PittCrime)
+ 
+#project PittCrime coordinates
+PittCrime_sf <- st_as_sf(PittCrime, coords = c("X", "Y"), crs = 4326) %>%
+  st_transform('ESRI:102728')
 
-buffers_rings <- multipleRingBuffer(buffer, 10, 1) 
-ggplot() + 
-  geom_sf(data = tracts09, fill = "white") +
-  geom_sf(data = buffers_rings, aes(fill = distance))
+PittCrime_sf_Theft <- filter(PittCrime_sf, INCIDENTHIERARCHYDESC=="THEFT")
+
+plot(PittCrime_sf_Theft)
+
+ggplot()+
+  geom_sf(data = allTracts.group)+
+  geom_sf(data = PittCrime_sf_Theft)
