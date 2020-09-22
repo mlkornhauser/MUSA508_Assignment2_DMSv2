@@ -76,6 +76,8 @@ q5 <- function(variable) {as.factor(ntile(variable, 5))}
 # Load hexadecimal color palette
 
 palette5 <- c("#f0f9e8","#bae4bc","#7bccc4","#43a2ca","#0868ac")
+pghpalette <- c("#3552F2", "#5E7EBF", "#4F6573", "#F2E85C", "#F2CA52")
+
 
 # Load census API key
 
@@ -259,7 +261,7 @@ ggplot(allTracts.group)+
   geom_sf(data = st_union(tracts09))+
   geom_sf(aes(fill = q5(MedRent))) +
   geom_sf(data = buffer, fill = "transparent", color = "red")+
-  scale_fill_manual(values = palette5,
+  scale_fill_manual(values = pghpalette,
                     labels = qBr(allTracts.group, "MedRent"), #ASK TYLER ABOUT THIS LABEL ISSUE!!
                     name = "Median Rent\n(Quintile Breaks)") +
   labs(title = "Median Rent 2009-2017", subtitle = "Real Dollars") +
@@ -272,7 +274,7 @@ ggplot(allTracts.group)+
     geom_sf(data = st_union(tracts09))+
     geom_sf(aes(fill = q5(pctWhite))) +
     geom_sf(data = buffer, fill = "transparent", color = "red")+
-    scale_fill_manual(values = palette5,
+    scale_fill_manual(values = pghpalette,
                       labels = qBr(allTracts.group, "pctWhite"),
                       name = "Population Percent White\n(Quintile Breaks)") +
     labs(title = "Population Percent White 2009-2017", subtitle = "Real Dollars") +
@@ -287,7 +289,7 @@ ggplot(allTracts.group)+
     geom_sf(data = st_union(tracts09))+
     geom_sf(aes(fill = q5(MedHHInc))) +
     geom_sf(data = buffer, fill = "transparent", color = "red")+
-    scale_fill_manual(values = palette5,
+    scale_fill_manual(values = pghpalette,
                       labels = qBr(allTracts.group, "MedHHInc"),
                       name = "Median Household Income\n(Quintile Breaks)") +
     labs(title = "Median Household Income 2009-2017", subtitle = "Real Dollars") +
@@ -353,7 +355,7 @@ allTracts.Summary %>%
   ggplot(aes(year, Value, fill = TOD)) +
   geom_bar(stat = "identity", position = "dodge") +
   facet_wrap(~Variable, scales = "free", ncol=5) +
-  scale_fill_manual(values = c("#bae4bc", "#0868ac")) +
+  scale_fill_manual(values = c("#3552F2", "#F2CA52")) +
   labs(title = "Indicator differences across time and space") +
   plotTheme() + theme(legend.position="bottom")
 
