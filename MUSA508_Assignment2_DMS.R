@@ -172,36 +172,6 @@ multipleRingBuffer <- function(inputPolygon, maxDistance, interval)
 v09 <- load_variables(2009, "acs5", cache = TRUE)
 #View(v09)
 
-#Pulling 2009 Census data for Allegheny County
-tracts09 <-  
-  get_acs(geography = "tract", variables = c("B25026_001E", "B02001_002E", "B01002_001E", 
-                                             "B19013_001E", "B25058_001E"), 
-          year=2009, state=42, county=003, geometry=T, output = "wide") %>% 
-  st_transform('ESRI:102728')%>%
-  rename(TotalPop = B25026_001E, 
-         Whites = B02001_002E,
-         MedAge = B01002_001E,
-         MedHHInc = B19013_001E, 
-         MedRent = B25058_001E) %>%
-  dplyr::select(-NAME, -starts_with("B")) %>%
-  mutate(pctWhite = ifelse(TotalPop > 0, Whites / TotalPop,0),
-         year = "2009") %>%
-  dplyr::select(-Whites)  
-
-summary(tracts09)
-
-###MK NOTE:  Need to select just the tracts within Pittsburgh City limits
-
-#boundaries <- st_read("./data/Pittsburgh_City_Boundary.geojson") %>%
-#  st_transform(st_crs(tracts09))
-
-#tracts_pitt00 <- 
-#  tracts09[boundaries,]
-
-#plot(boundaries)
-#plot(tracts_pitt00)
-#summary(tracts09)
-
 #Pulling 2017 Census data for Allegheny County
 tracts17 <-  
   get_acs(geography = "tract", variables = c("B25026_001E", "B02001_002E", "B01002_001E", 
@@ -222,12 +192,55 @@ tracts17 <-
 summary(tracts17)
 
 #Generate list of Pittsburgh census tracts
-#pitt_tracts10 <- read.csv('./data/Pitt_2010_Census_Tractsv2.csv')
+pitt_tracts10 <- read.csv('./data/Pitt_2010_Census_Tractsv2.csv')
+names(pitt_tracts10)[names(pitt_tracts10) == "geoid10v2"] <- "GEOID"
+
+#Filter Allegheny County census trcts dataframe to only include Pittsburgh tracts
+tracts17 <- tracts17[tracts17$GEOID %in% pitt_tracts10$GEOID,]
+plot(tracts17)
+
+#Generate outline of Pittsburgh census tracts using the 2017 list.
+pitt_union <- st_union(tracts17) %>%
+  st_as_sf()
+plot(pitt_union)
+
+#Pulling 2009 Census data for Allegheny County
+tracts09 <-  
+  get_acs(geography = "tract", variables = c("B25026_001E", "B02001_002E", "B01002_001E", 
+                                             "B19013_001E", "B25058_001E"), 
+          year=2009, state=42, county=003, geometry=T, output = "wide") %>% 
+  st_transform('ESRI:102728')%>%
+  rename(TotalPop = B25026_001E, 
+         Whites = B02001_002E,
+         MedAge = B01002_001E,
+         MedHHInc = B19013_001E, 
+         MedRent = B25058_001E) %>%
+  dplyr::select(-NAME, -starts_with("B")) %>%
+  mutate(pctWhite = ifelse(TotalPop > 0, Whites / TotalPop,0),
+         year = "2009") %>%
+  dplyr::select(-Whites) %>%
+  st_as_sf() 
+
+#Generate list of Pittsburgh census tracts
+#pitt_tracts00 <- read.csv('./data/Pitt_2000_Census_Tracts.csv')
 #names(pitt_tracts10)[names(pitt_tracts10) == "geoid10v2"] <- "GEOID"
 
 #Filter Allegheny County census trcts dataframe to only include Pittsburgh tracts
-#tracts17 <- tracts17[tracts17$GEOID %in% pitt_tracts10$GEOID,]
-#plot(tracts17)
+#tracts09 <- tracts09[tracts09$GEOID %in% pitt_tracts00$GEOID,]
+#plot(tracts09)
+
+###MK NOTE:  Need to select just the tracts within Pittsburgh City limits
+
+boundaries <- st_read("./data/Pittsburgh_City_Boundary.geojson") %>%
+  st_transform(st_crs(tracts09))
+
+#tracts_pitt00 <- 
+#  tracts09[boundaries,]
+
+#plot(boundaries)
+#plot(tracts_pitt00)
+#summary(tracts09)
+
 
 # Combine 2009 and 2017 census data into single dataframe
 allTracts <- rbind(tracts09,tracts17)
