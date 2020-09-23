@@ -249,18 +249,17 @@ head(LightRailPGH)
 #project Pittsburgh coordinates
 LightRailPGH_sf <- st_as_sf(LightRailPGH, coords = c("Lon", "Lat"), crs = 4326) %>%
   st_transform('ESRI:102728')
-head(LightRailPGH_sf)
 
-####################
-# VISUALIZAING DATA
-####################
+#Limit the transit stations to those within Pittsburgh city limits
+LightRailPGH_sf <- st_join(LightRailPGH_sf, allTracts, join = st_intersects, left = FALSE)
 
+#Plot to check boundaries
 #2009
 ggplot() + 
   geom_sf(data=tracts09) +
   geom_sf(data=LightRailPGH_sf, 
           aes(colour = Direction), 
-          show.legend = "point", size= 2) +
+          show.legend = "point", size= 3) +
   labs(title="Light Rail Stops", 
        subtitle="Pittsburgh, PA", 
        caption="Figure 1") +
@@ -272,11 +271,15 @@ ggplot() +
   geom_sf(data=tracts17) +
   geom_sf(data=LightRailPGH_sf, 
           aes(colour = Direction), 
-          show.legend = "point", size= 2) +
+          show.legend = "point", size= 3) +
   labs(title="Light Rail Stops", 
        subtitle="Pittsburgh, PA", 
        caption="Figure 1") +
   mapTheme()
+
+##########################
+# CREATING TRANSIT BUFFERS
+##########################
 
 #Relatingg tracts and subway stops using buffers to understand relationship
 Railbuffers <- 
@@ -284,10 +287,12 @@ Railbuffers <-
   mutate(Legend = "Buffer") %>%
   dplyr::select(Legend)
 
+#Create one buffer polygon
 buffer <- st_union(st_buffer(LightRailPGH_sf, 2640)) %>%
   st_sf() %>%
   mutate(Legend = "Unioned Buffer")
 
+#Plotting the buffers (union and individual)
 ggplot() +
   geom_sf(data = buffer)
 
@@ -298,10 +303,7 @@ ggplot() +
   labs(caption = "Figure 2.6") +
   mapTheme()
 
-#Selecting census tracts within the lightrail station buffers
-# 3 methods to select census tracts and their corresponding stops;clip, selection, selection of centroids
-
-#Select Centroids
+#Selecting census tracts within the lightrail station buffers using Select by Centroid
 selectCentroids09 <-
   st_centroid(tracts09)[buffer,] %>%
   st_drop_geometry() %>%
@@ -335,6 +337,10 @@ allTracts.group <-
       mutate(TOD = "Non-TOD")) %>%
   mutate(MedRent.inf = ifelse(year == "2009", MedRent * 1.42, MedRent))
 
+####################
+# INDICATOR GRAPHICS
+####################
+
 #Median rent maps: 2009 to 2017
 ggplot(allTracts.group)+
   geom_sf(data = st_union(tracts09))+
@@ -361,7 +367,6 @@ ggplot(allTracts.group)+
   mapTheme() + 
   theme(plot.title = element_text(size=22))
   
-  
 #Median Household Income maps: 2009-2017
 ggplot(allTracts.group)+
   geom_sf(data = st_union(tracts09))+
@@ -374,8 +379,7 @@ ggplot(allTracts.group)+
   facet_wrap(~year)+
   mapTheme() + 
   theme(plot.title = element_text(size=22))
-  
-  
+
 #Median Age Maps 2009-2017
 ggplot(allTracts.group)+
   geom_sf(data = st_union(tracts09))+
@@ -388,7 +392,6 @@ ggplot(allTracts.group)+
   facet_wrap(~year)+
   mapTheme() + 
   theme(plot.title = element_text(size=22))
-  
 
 #Time space TOD and non-TOD: 2009 to 2017
 ggplot(allTracts.group)+
@@ -409,10 +412,8 @@ allTracts.Summary <-
             MedAge = mean(MedAge, na.rm = T),
             MedHHInc = mean(MedHHInc, na.rm = T))
 
-kable(allTracts.Summary) %>%
-  kable_styling() %>%
-  footnote(general_title = "\n", 
-             general = "Pittsburgh Variable Comparison")
+kable(allTracts.Summary, caption = "Pittsburgh Variable Comparison") %>%
+  kable_styling() 
 
 #Add title to this later
 #This rearranged the plot to be more readable
@@ -421,10 +422,8 @@ allTracts.Summary %>%
   gather(Variable, Value, -year.TOD) %>%
   mutate(Value = round(Value, 2)) %>%
   spread(year.TOD, Value) %>%
-  kable() %>%
-  kable_styling() %>%
-  footnote(general_title = "\n",
-           general = "Pittsburgh Variable Comparison")
+  kable(caption = "Pittsburgh Variable Comparison") %>%
+  kable_styling()
 
 #Indicator Plots
 allTracts.Summary %>%
@@ -435,6 +434,10 @@ allTracts.Summary %>%
   scale_fill_manual(values = c("#bae4bc", "#0868ac")) +
   labs(title = "Indicator differences across time and space") +
   plotTheme() + theme(legend.position="bottom")
+
+#######################
+# GRADUATED SYMBOLS MAP
+#######################
 
 #Graduate symbols map
 #ORIGINAL ATTEMPT
@@ -449,13 +452,13 @@ allTracts.Summary %>%
 #DK ATTEMPT BELOW
 
 centers17 <- st_centroid(selectCentroids17)
-#View(centers17)
 
+#View(centers17)
 ggplot(allTracts.group)+
   geom_sf(data = allTracts.group, fill = "white") +   
   geom_sf(data = centers17, aes(size = TotalPop), shape = 21,
-          fill = "darkblue", alpha = 0.7, show.legend = "point") +   
-  scale_size_continuous(range = c(0.1, 7))
+          fill = "darkblue", alpha = 0.5, show.legend = "point") +   
+  scale_size_continuous(range = c(0.1, 10))
 
 centers17Rent <-
   st_centroid(tracts17)[buffer,] %>%
@@ -471,8 +474,8 @@ centers17Rent2 <- st_centroid(centers17Rent)
 ggplot(allTracts.group)+
   geom_sf(data = allTracts.group, fill = "white") +   
   geom_sf(data = centers17Rent2, aes(size = MedRent), shape = 21,          
-          fill = "darkgreen", alpha = 0.7, show.legend = "point") +   
-  scale_size_continuous(range = c(0.1, 7))
+          fill = "darkgreen", alpha = 0.5, show.legend = "point") +   
+  scale_size_continuous(range = c(0.1, 10))
 
 ####################
 # MultipleRingBuffer
@@ -484,9 +487,8 @@ PittBuffer4Rings <- multipleRingBuffer(buffer, 36960, 5280)
 #PittBound <- st_read("data\\Pittsburgh_City_Boundary.geojson")
 
 #Generate outline of Pittsburgh census tracts using the 2017 list.
-pitt_union <- st_union(tracts17) %>% st_as_sf()
-plot(pitt_union)
-
+#pitt_union <- st_union(tracts17) %>% st_as_sf()
+#plot(pitt_union)
 
 #plot
 ggplot()+
@@ -503,8 +505,6 @@ clip09 <-
   summarise(avgRent = mean(MedRent, na.rm = TRUE))
 clip09$year <- 2009
 
-?gather
-
 clip17 <- 
   st_intersection(PittBuffer4Rings, tracts17) %>%
   dplyr::select(distance, MedRent) %>%
@@ -520,9 +520,8 @@ p <- ggplot(clip_all, aes(y=avgRent, x=distance))
 p + geom_line(aes(group=year, color=year)) + 
   geom_point(aes(color=year)) +
   ggtitle("Rent as a function of Distance to Subway") +
-  plotTheme() + 
+  plotTheme() +
   theme() 
-
 
 #Plot version 2
 ggplot() +
@@ -530,14 +529,14 @@ ggplot() +
   geom_line(data = clip17, aes(x = distance, y = avgRent), color = "deepskyblue1", size=1.5) +
   geom_point(data = clip09, aes(x = distance, y = avgRent), color = "turquoise3", size=3) +
   geom_point(data = clip17, aes(x = distance, y = avgRent), color = "deepskyblue1", size=3) +
-  xlab('Average Rent') +
-  ylab('Distance from Station (ft)') +
+  xlab('Distance from Station (ft)') +
+  ylab('Average Rent') +
   ggtitle('Rent as a function of Distance to Subway') +
-  scale_fill_manual(values = c("turquoise3", "deepskyblue1"),
+  scale_colour_manual(values = c("turquoise3", "deepskyblue1"),
                     labels = "year",
-                    name = "Year") +
+                    name = "Year") 
   labs(title = "Rent as a Function of Distance from Station") +
-  plotTheme() + theme(legend.position="bottom")
+  plotTheme() 
 
 ########################
 # Crime Data integration
