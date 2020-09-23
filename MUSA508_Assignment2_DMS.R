@@ -172,6 +172,30 @@ multipleRingBuffer <- function(inputPolygon, maxDistance, interval)
 v09 <- load_variables(2009, "acs5", cache = TRUE)
 #View(v09)
 
+#Pulling 2009 Census data for Allegheny County
+tracts09 <-  
+  get_acs(geography = "tract", variables = c("B25026_001E", "B02001_002E", "B01002_001E", 
+                                             "B19013_001E", "B25058_001E"), 
+          year=2009, state=42, county=003, geometry=T, output = "wide") %>% 
+  st_transform('ESRI:102728')%>%
+  rename(TotalPop = B25026_001E, 
+         Whites = B02001_002E,
+         MedAge = B01002_001E,
+         MedHHInc = B19013_001E, 
+         MedRent = B25058_001E) %>%
+  dplyr::select(-NAME, -starts_with("B")) %>%
+  mutate(pctWhite = ifelse(TotalPop > 0, Whites / TotalPop,0),
+         year = "2009") %>%
+  dplyr::select(-Whites) 
+
+#Generate list of Pittsburgh census tracts
+pitt_tracts00 <- read.csv('./data/Pitt_2000_Census_Tracts.csv')
+names(pitt_tracts10)[names(pitt_tracts10) == "geoid10v2"] <- "GEOID"
+
+#Filter Allegheny County census trcts dataframe to only include Pittsburgh tracts
+tracts09 <- tracts09[tracts09$GEOID %in% pitt_tracts00$GEOID,]
+plot(tracts09)
+
 #Pulling 2017 Census data for Allegheny County
 tracts17 <-  
   get_acs(geography = "tract", variables = c("B25026_001E", "B02001_002E", "B01002_001E", 
@@ -199,48 +223,8 @@ names(pitt_tracts10)[names(pitt_tracts10) == "geoid10v2"] <- "GEOID"
 tracts17 <- tracts17[tracts17$GEOID %in% pitt_tracts10$GEOID,]
 plot(tracts17)
 
-#Generate outline of Pittsburgh census tracts using the 2017 list.
-pitt_union <- st_union(tracts17) %>%
-  st_as_sf()
-plot(pitt_union)
-
-#Pulling 2009 Census data for Allegheny County
-tracts09 <-  
-  get_acs(geography = "tract", variables = c("B25026_001E", "B02001_002E", "B01002_001E", 
-                                             "B19013_001E", "B25058_001E"), 
-          year=2009, state=42, county=003, geometry=T, output = "wide") %>% 
-  st_transform('ESRI:102728')%>%
-  rename(TotalPop = B25026_001E, 
-         Whites = B02001_002E,
-         MedAge = B01002_001E,
-         MedHHInc = B19013_001E, 
-         MedRent = B25058_001E) %>%
-  dplyr::select(-NAME, -starts_with("B")) %>%
-  mutate(pctWhite = ifelse(TotalPop > 0, Whites / TotalPop,0),
-         year = "2009") %>%
-  dplyr::select(-Whites) %>%
-  st_as_sf() 
-
-#Generate list of Pittsburgh census tracts
-#pitt_tracts00 <- read.csv('./data/Pitt_2000_Census_Tracts.csv')
-#names(pitt_tracts10)[names(pitt_tracts10) == "geoid10v2"] <- "GEOID"
-
-#Filter Allegheny County census trcts dataframe to only include Pittsburgh tracts
-#tracts09 <- tracts09[tracts09$GEOID %in% pitt_tracts00$GEOID,]
-#plot(tracts09)
-
-###MK NOTE:  Need to select just the tracts within Pittsburgh City limits
-
-boundaries <- st_read("./data/Pittsburgh_City_Boundary.geojson") %>%
-  st_transform(st_crs(tracts09))
-
-#tracts_pitt00 <- 
-#  tracts09[boundaries,]
-
-#plot(boundaries)
-#plot(tracts_pitt00)
-#summary(tracts09)
-
+#boundaries <- st_read("./data/Pittsburgh_City_Boundary.geojson") %>%
+#  st_transform(st_crs(tracts09))
 
 # Combine 2009 and 2017 census data into single dataframe
 allTracts <- rbind(tracts09,tracts17)
@@ -355,9 +339,9 @@ allTracts.group <-
 ggplot(allTracts.group)+
   geom_sf(data = st_union(tracts09))+
   geom_sf(aes(fill = q5(MedRent))) +
-  geom_sf(data = buffer, fill = "transparent", color = "red")+
+  geom_sf(data = buffer, fill = "transparent", color = "red", size=1)+
   scale_fill_manual(values = palette5,
-                    labels = qBr(allTracts.group, "MedRent"), #ASK TYLER ABOUT THIS LABEL ISSUE!!
+                    labels = qBr(allTracts.group, "MedRent"), 
                     name = "Median Rent\n(Quintile Breaks)") +
   labs(title = "Median Rent 2009-2017", subtitle = "Real Dollars") +
   facet_wrap(~year)+
@@ -368,7 +352,7 @@ ggplot(allTracts.group)+
 ggplot(allTracts.group)+
   geom_sf(data = st_union(tracts09))+
   geom_sf(aes(fill = q5(pctWhite))) +
-  geom_sf(data = buffer, fill = "transparent", color = "red")+
+  geom_sf(data = buffer, fill = "transparent", color = "red", size=1)+
   scale_fill_manual(values = palette5,
                     labels = qBr(allTracts.group, "pctWhite"),
                     name = "Population Percent White\n(Quintile Breaks)") +
@@ -382,7 +366,7 @@ ggplot(allTracts.group)+
 ggplot(allTracts.group)+
   geom_sf(data = st_union(tracts09))+
   geom_sf(aes(fill = q5(MedHHInc))) +
-  geom_sf(data = buffer, fill = "transparent", color = "red")+
+  geom_sf(data = buffer, fill = "transparent", color = "red", size=1)+
   scale_fill_manual(values = palette5,
                     labels = qBr(allTracts.group, "MedHHInc"),
                     name = "Median Household Income\n(Quintile Breaks)") +
@@ -396,7 +380,7 @@ ggplot(allTracts.group)+
 ggplot(allTracts.group)+
   geom_sf(data = st_union(tracts09))+
   geom_sf(aes(fill = q5(MedAge))) +
-  geom_sf(data = buffer, fill = "transparent", color = "red")+
+  geom_sf(data = buffer, fill = "transparent", color = "red", size=1)+
   scale_fill_manual(values = palette5,
                     labels = qBr(allTracts.group, "MedAge"),
                     name = "Median Rent\n(Quintile Breaks)") +
@@ -428,7 +412,7 @@ allTracts.Summary <-
 kable(allTracts.Summary) %>%
   kable_styling() %>%
   footnote(general_title = "\n", 
-             general = "Allegheny County Variable Comparison")
+             general = "Pittsburgh Variable Comparison")
 
 #Add title to this later
 #This rearranged the plot to be more readable
@@ -440,7 +424,7 @@ allTracts.Summary %>%
   kable() %>%
   kable_styling() %>%
   footnote(general_title = "\n",
-           general = "Allegheny County Variable Comparison")
+           general = "Pittsburgh Variable Comparison")
 
 #Indicator Plots
 allTracts.Summary %>%
@@ -471,8 +455,7 @@ ggplot(allTracts.group)+
   geom_sf(data = allTracts.group, fill = "white") +   
   geom_sf(data = centers17, aes(size = TotalPop), shape = 21,
           fill = "darkblue", alpha = 0.7, show.legend = "point") +   
-  scale_size_continuous(range = c(0.1, 5))
-#Q for TYLER how to zoom in to make this more readable
+  scale_size_continuous(range = c(0.1, 7))
 
 centers17Rent <-
   st_centroid(tracts17)[buffer,] %>%
@@ -489,7 +472,7 @@ ggplot(allTracts.group)+
   geom_sf(data = allTracts.group, fill = "white") +   
   geom_sf(data = centers17Rent2, aes(size = MedRent), shape = 21,          
           fill = "darkgreen", alpha = 0.7, show.legend = "point") +   
-  scale_size_continuous(range = c(0.1, 5))
+  scale_size_continuous(range = c(0.1, 7))
 
 ####################
 # MultipleRingBuffer
@@ -498,12 +481,17 @@ ggplot(allTracts.group)+
 PittBuffer4Rings <- multipleRingBuffer(buffer, 36960, 5280)
 
 #Importing Pittsburgh boundary
-PittBound <- st_read("data\\Pittsburgh_City_Boundary.geojson")
+#PittBound <- st_read("data\\Pittsburgh_City_Boundary.geojson")
+
+#Generate outline of Pittsburgh census tracts using the 2017 list.
+pitt_union <- st_union(tracts17) %>% st_as_sf()
+plot(pitt_union)
+
 
 #plot
 ggplot()+
   geom_sf(data = PittBuffer4Rings, fill = "white") +
-  geom_sf(data = PittBound, fill = "transparent", lwd=1.25) +
+  geom_sf(data = pitt_union, fill = "transparent", lwd=1.25) +
   geom_sf(data =LightRailPGH_sf, colour = "blue")
 
 #Determine median rent for each buffer ring
@@ -529,7 +517,12 @@ clip_all <- rbind(clip09, clip17)
 
 #Plot version 1
 p <- ggplot(clip_all, aes(y=avgRent, x=distance))
-p + geom_line(aes(group=year, color=year)) + geom_point(aes(color=year))
+p + geom_line(aes(group=year, color=year)) + 
+  geom_point(aes(color=year)) +
+  ggtitle("Rent as a function of Distance to Subway") +
+  plotTheme() + 
+  theme() 
+
 
 #Plot version 2
 ggplot() +
@@ -539,10 +532,12 @@ ggplot() +
   geom_point(data = clip17, aes(x = distance, y = avgRent), color = "deepskyblue1", size=3) +
   xlab('Average Rent') +
   ylab('Distance from Station (ft)') +
-  ggtitle('Rent as a function of Distance to Subway') + 
-  scale_colour_manual(name="Year",
-                    values=c('turquoise3', 'deepskyblue1'),
-                    labels = c('2009', '2017'))
+  ggtitle('Rent as a function of Distance to Subway') +
+  scale_fill_manual(values = c("turquoise3", "deepskyblue1"),
+                    labels = "year",
+                    name = "Year") +
+  labs(title = "Rent as a Function of Distance from Station") +
+  plotTheme() + theme(legend.position="bottom")
 
 ########################
 # Crime Data integration
