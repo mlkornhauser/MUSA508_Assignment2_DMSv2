@@ -76,7 +76,7 @@ q5 <- function(variable) {as.factor(ntile(variable, 5))}
 # Load hexadecimal color palette
 
 #palette5 <- c("#3552F2", "5E7EBF", "4F6573", "#F2E85C", "#F2CA52")
-palette5 <- c("#F2CA52", "#F2E85C", "5E7EBF", "4F6573", "#3552F2")
+palette5 <- c("#F2E85C", "#F2CA52", "5E7EBF", "4F6573", "#3552F2")
 
 # Load census API key
 
@@ -237,6 +237,7 @@ summary(allTracts)
 
 #Convert pctWhite from fraction to percent
 allTracts$pctWhite <- allTracts$pctWhite*100
+allTracts$pctWhite[allTracts$pctWhite > 100] <- NA
 
 ###############
 # TRANSIT DATA
@@ -401,7 +402,6 @@ ggplot(allTracts.group)+
 
 #Time space TOD and non-TOD: 2009 to 2017
 ggplot(allTracts.group)+
-  geom_sf(data = buffer)+
   geom_sf(aes(fill = TOD)) +
   labs(title = "Time/Space Groups") +
   facet_wrap(~year)+
@@ -454,59 +454,75 @@ allTracts.Summary %>%
 #   scale_size_continuous(range = c(1, 10))
   
 #MK Note:  Action item!  We need to figure out how to make this legible.
+# 
+# #DK ATTEMPT BELOW
+# 
+# centers17 <- st_centroid(selectCentroids17)
+# 
+# #View(centers17)
+# ggplot(allTracts.group)+
+#   geom_sf(data = allTracts.group, fill = "white") +   
+#   geom_sf(data = centers17, aes(size = TotalPop), shape = 21,
+#            fill = "darkblue", alpha = 0.5, show.legend = "point") +   
+#    scale_size_continuous(range = c(0.1, 10))
+#  
+# centers17Rent <-
+#    st_centroid(tracts17)[buffer,] %>%
+#    st_drop_geometry() %>%
+#    left_join(dplyr::select(tracts17, GEOID)) %>%
+#    st_sf() %>%
+#    dplyr::select(TotalPop, MedRent) %>%
+#    mutate(Selection_Type = "Select by Centroids")
+# centers17Rent <- na.omit(centers17Rent) 
+#  
+# centers17Rent2 <- st_centroid(centers17Rent)
+#  
+# ggplot(allTracts.group)+
+#    geom_sf(data = allTracts.group, fill = "white") +   
+#    geom_sf(data = centers17Rent2, aes(size = MedRent), shape = 21,          
+#            fill = "darkgreen", alpha = 0.5, show.legend = "point") +   
+#    scale_size_continuous(range = c(0.1, 10))
 
-#DK ATTEMPT BELOW
 
-centers17 <- st_centroid(selectCentroids17)
-
-#View(centers17)
-ggplot(allTracts.group)+
-  geom_sf(data = allTracts.group, fill = "white") +   
-  geom_sf(data = centers17, aes(size = TotalPop), shape = 21,
-           fill = "darkblue", alpha = 0.5, show.legend = "point") +   
-   scale_size_continuous(range = c(0.1, 10))
+###Ken's way
+kens_buffer <- 
+  st_transform(LightRailPGH_sf, ('ESRI:102728')) %>%
+  st_buffer(2600) %>%
+  dplyr::select(Stopname )
  
-centers17Rent <-
-   st_centroid(tracts17)[buffer,] %>%
-   st_drop_geometry() %>%
-   left_join(dplyr::select(tracts17, GEOID)) %>%
-   st_sf() %>%
-   dplyr::select(TotalPop, MedRent) %>%
-   mutate(Selection_Type = "Select by Centroids")
-centers17Rent <- na.omit(centers17Rent) 
- 
-centers17Rent2 <- st_centroid(centers17Rent)
- 
-ggplot(allTracts.group)+
-   geom_sf(data = allTracts.group, fill = "white") +   
-   geom_sf(data = centers17Rent2, aes(size = MedRent), shape = 21,          
-           fill = "darkgreen", alpha = 0.5, show.legend = "point") +   
-   scale_size_continuous(range = c(0.1, 10))
+j <- 
+  st_join(tracts17, kens_buffer) %>%
+  filter(!is.na(Stopname))
 
+#Total population
+popByStation <-
+  j %>% 
+  group_by(Stopname) %>%
+  summarize(sumPop = sum(TotalPop)) %>%
+  st_drop_geometry() %>%
+  left_join(LightRailPGH_sf) %>%
+  st_sf()
+  
+ggplot() +
+  geom_sf(data = allTracts.group, fill = "white") +
+  geom_sf(data = popByStation, aes(size=TotalPop), shape = 21,
+          fill = "blue") + 
+  scale_size_continuous(range = c(.5, 7))
 
-# # #Ken's way
-# kens_buffer <- 
-#  st_transform(LightRailPGH_sf, ('ESRI:102728')) %>%
-#  st_buffer(2600) %>%
-#  dplyr::select(Stopname )
-# 
-# j <- 
-#  st_join(tracts17, kens_buffer) %>%
-#  filter(!is.na(Stopname))
-# 
-# plot(j)
-# 
-# ?group_by
-# 
-# popByStation <-
-#   j %>% 
-#   group_by(Stopname) %>%
-#   summarize(sumPop = sum(TotalPop)) %>%
-#   st_drop_geometry() %>%
-#   #as(popByStation, Class = "Spatial") %>%
-#   aggregate(x = LightRailPGH_sp["Stopname"], by = popByStation, FUN = length)
-#  #FIGURE OUT THE REST
+#Median Rent
+RentByStation <-
+  j %>% 
+  group_by(Stopname) %>%
+  summarize(sumPop = mean(MedRent)) %>%
+  st_drop_geometry() %>%
+  left_join(LightRailPGH_sf) %>%
+  st_sf()
 
+ggplot() +
+  geom_sf(data = allTracts.group, fill = "white") +
+  geom_sf(data = RentByStation, aes(size=MedRent), shape = 21,
+          fill = "blue") + 
+  scale_size_continuous(range = c(.5, 7))
 
 ####################
 # MultipleRingBuffer
@@ -590,7 +606,7 @@ ggplot()+
   geom_sf(data = PittCrime_Theft_sf)
 
 #Concentric buffer analysis using the buffer shapefile generated for the rent analysis.
-CrimeBuffer <- multipleRingBuffer(buffer, 36960, 5280/2)
+CrimeBuffer <- multipleRingBuffer(buffer, 36960, 5280)
 
 clip_crime <- 
   st_intersection(CrimeBuffer, PittCrime_Theft_sf) %>%
@@ -609,10 +625,14 @@ ggplot(data = clip_crime, aes(x=distance, y=Total_Count)) +
 
 ggplot()+
   geom_sf(data = allTracts.group, aes(fill = q5(MedRent)))+
-  geom_sf(data = PittCrime_Theft_sf, color = "grey") + 
+  geom_sf(data = PittCrime_Theft_sf, color = "salmon") + 
   geom_sf(data = buffer, fill = "transparent", color = "red", size = 1) + 
   scale_fill_manual(values = palette5,
                     labels = qBr(allTracts.group, "MedRent"),
                     name = "Median Rent \n(Quintile Breaks") +
   ggtitle("Instances of Theft and Median Rent") +
   mapTheme()
+
+j2 <- 
+  st_join(tracts17, PittCrime_Theft_sf) %>%
+  filter(!is.na(INCIDENTHIERARCHYDESC))
